@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
                                       IMAGE_SHARPENING,     //увеличение резкости изображения
                                       IMAGE_SMOOTHING,      //сглаживание изображения
                                       HISTOGRAM_EQUALIZATION, // построение гистограммы и эквализация гистограммы
+                                      EDGE_DETECTION,       //обнаружение границ
                                       IMAGE_STITCHING,      //создание панорамы
                                       SEAM_CARVING          //бесшовное изменение размера
                                      };
@@ -42,6 +43,7 @@ public:
     void sharpenWithFilter2D(const cv::Mat& src,cv::Mat& dst);  //применение маски к изображению (метод cv::filter2D)
     void imageSmoothing();
     void histogramEqualization();
+    void edgeDetection();
 
 
     ~MainWindow();

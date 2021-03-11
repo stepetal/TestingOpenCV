@@ -21,6 +21,7 @@ void MainWindow::createWidgets()
                                                      << "Повышение резкости изображения"
                                                      << "Сглаживание изображения"
                                                      << "Нормализация гистограммы"
+                                                     << "Обнаружение границ изображения"
                                                      << "Создание панорамы"
                                     );
     applyPushButton = new QPushButton("Запустить");
@@ -59,6 +60,9 @@ void MainWindow::createConnections()
                 break;
             case SYS::toUType(FeatureType::HISTOGRAM_EQUALIZATION):
                 histogramEqualization();
+                break;
+            case SYS::toUType(FeatureType::EDGE_DETECTION):
+                edgeDetection();
                 break;
             default:
                 break;
@@ -232,6 +236,64 @@ void MainWindow::histogramEqualization()
                  cv::Scalar(255,0,0),1,8,0);
     }
     cv::imshow("CLAHE histogram",out_hist_image);
+}
+
+void MainWindow::edgeDetection()
+{
+    cv::Mat image = cv::imread("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg",cv::IMREAD_COLOR);
+    //определение границ изображения в градациях серого с помощью оператора Собеля
+    cv::Mat grayscaled_image,grayscaled_edges;
+    cv::medianBlur(image,image,3);
+    cv::imshow("Image after median blur",image);
+    cv::cvtColor(image,grayscaled_image,cv::COLOR_BGR2GRAY);
+    cv::Mat grad_x,grad_y;
+    //вычисляем градиент по оси OX
+    cv::Sobel(grayscaled_image,grad_x,CV_32F,1,0);
+    //находим градиент по оси OY
+    cv::Sobel(grayscaled_image,grad_y,CV_32F,0,1);
+    cv::pow(grad_x,2,grad_x);
+    cv::pow(grad_y,2,grad_y);
+    cv::sqrt((grad_x + grad_y),grayscaled_edges);
+    grayscaled_edges.convertTo(grayscaled_edges,CV_8U);
+    cv::threshold(grayscaled_edges,grayscaled_edges,125,255,cv::THRESH_BINARY);
+    cv::imshow("Binarized sobel edges",grayscaled_edges);
+    //нахождение границ цветного изображения с помощю оператора Собеля
+    std::vector<cv::Mat> channels(image.channels());
+    std::vector<cv::Mat> color_edges(image.channels());
+    cv::Mat combined_color_edges;
+    cv::cvtColor(image,image,cv::COLOR_BGR2HSV);
+    cv::split(image,channels);
+    for (int i = 0; i < image.channels(); i++)
+    {
+        cv::Mat color_grad_x,color_grad_y;
+        //находим градиент по оси OX
+        cv::Sobel(channels[i],color_grad_x,CV_32F,1,0);
+        //находим градиент по оси OY
+        cv::Sobel(channels[i],color_grad_y,CV_32F,1,0);
+        cv::pow(color_grad_x,2,color_grad_x);
+        cv::pow(color_grad_y,2,color_grad_y);
+        cv::sqrt((color_grad_x + color_grad_y),color_edges[i]);
+        //cv::imshow(QString("edge for channel %1").arg(i).toStdString(),color_edges[i]);
+    }
+    cv::bitwise_or(color_edges[0],color_edges[1],combined_color_edges);
+    cv::bitwise_or(combined_color_edges,color_edges[2],combined_color_edges);
+    combined_color_edges.convertTo(combined_color_edges,CV_8U);
+    cv::imshow("Sobel color edges detection",combined_color_edges);
+    //Нахождение гранциц цветного изображения с помощью оператора Лапласа
+    cv::Mat combined_laplace_color_edges;
+    std::vector<cv::Mat> laplace_color_edges(image.channels());
+    for (int i = 0; i < image.channels(); i++)
+    {
+        cv::Laplacian(image,laplace_color_edges[i],CV_32F);
+    }
+    cv::bitwise_or(laplace_color_edges[0],laplace_color_edges[1],combined_laplace_color_edges);
+    cv::bitwise_or(combined_laplace_color_edges,laplace_color_edges[2],combined_laplace_color_edges);
+    combined_laplace_color_edges.convertTo(combined_laplace_color_edges,CV_8U);
+    cv::imshow("Laplace color edges detection",combined_laplace_color_edges);
+    //Нахождение границ изображения с помощью алгоритма Кэнни
+    cv::Mat canny_edges;
+    cv::Canny(image,canny_edges,200,250);
+    cv::imshow("Canny edge detection",canny_edges);
 }
 
 
