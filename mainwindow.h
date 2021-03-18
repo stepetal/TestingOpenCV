@@ -4,7 +4,10 @@
 #include <QMainWindow>
 #include <QHBoxLayout>
 #include <QComboBox>
+#include <QLineEdit>
 #include <QPushButton>
+#include <QFileDialog>
+#include <QGroupBox>
 #include <QDebug>
 
 #include "utils.h"
@@ -17,17 +20,18 @@
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    enum class FeatureType : uint8_t {LOADING_IMAGE,        //загрузка и демонстрация изображения
-                                      POINTER_OPERATIONS,   //операции с указателями на элементы матрицы
-                                      IMAGE_SHARPENING,     //увеличение резкости изображения
-                                      IMAGE_SMOOTHING,      //сглаживание изображения
+    enum class FeatureType : uint8_t {LOADING_IMAGE,          //загрузка и демонстрация изображения
+                                      POINTER_OPERATIONS,     //операции с указателями на элементы матрицы
+                                      IMAGE_SHARPENING,       //увеличение резкости изображения
+                                      IMAGE_SMOOTHING,        //сглаживание изображения
                                       HISTOGRAM_EQUALIZATION, // построение гистограммы и эквализация гистограммы
-                                      EDGE_DETECTION,       //обнаружение границ
-                                      IMAGE_STITCHING,      //создание панорамы
-                                      SEAM_CARVING          //бесшовное изменение размера
+                                      EDGE_DETECTION,         //обнаружение границ
+                                      CONTOUR_DETECTION       //обнаружение контура
                                      };
     QComboBox *chooseFeatureComboBox;
     QPushButton *applyPushButton;
+    QPushButton *openImageFilePushButton;
+    QLineEdit *filePathLineEdit;
 public:
     MainWindow(QWidget *parent = 0);
     void createLayout();
@@ -44,6 +48,7 @@ public:
     void imageSmoothing();
     void histogramEqualization();
     void edgeDetection();
+    void contourDetection();
 
 
     ~MainWindow();

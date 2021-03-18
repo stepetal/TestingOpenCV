@@ -22,28 +22,61 @@ void MainWindow::createWidgets()
                                                      << "Сглаживание изображения"
                                                      << "Нормализация гистограммы"
                                                      << "Обнаружение границ изображения"
-                                                     << "Создание панорамы"
+                                                     << "Обнаружение контура изображения"
                                     );
     applyPushButton = new QPushButton("Запустить");
+    openImageFilePushButton = new QPushButton("Открыть");
+    filePathLineEdit = new QLineEdit();
+    filePathLineEdit->setReadOnly(true);
 }
 
 
 void MainWindow::createLayout()
 {
     QWidget *mainWindowWidget = new QWidget();
-    QHBoxLayout *mainWindowLayout = new QHBoxLayout();
-    mainWindowLayout->addWidget(chooseFeatureComboBox);
-    mainWindowLayout->addWidget(applyPushButton);
+    QVBoxLayout *mainWindowLayout = new QVBoxLayout();
+
+    QGroupBox *openFileGroupBox = new QGroupBox("Исходное изображение");
+    QHBoxLayout *openFileGroupBoxLayout = new QHBoxLayout();
+    openFileGroupBoxLayout->addWidget(filePathLineEdit);
+    openFileGroupBoxLayout->addWidget(openImageFilePushButton);
+    openFileGroupBox->setLayout(openFileGroupBoxLayout);
+
+    QGroupBox *chooseFeaturesGroupBox = new QGroupBox("Выбор операции");
+    QVBoxLayout *chooseFeaturesGroupBoxLayout = new QVBoxLayout();
+    chooseFeaturesGroupBoxLayout->addWidget(chooseFeatureComboBox);
+    chooseFeaturesGroupBox->setLayout(chooseFeaturesGroupBoxLayout);
+
+    QWidget *buttonWidget = new QWidget();
+    QHBoxLayout *buttonWidgetLayout = new QHBoxLayout();
+    buttonWidgetLayout->addStretch();
+    buttonWidgetLayout->addWidget(applyPushButton);
+    buttonWidgetLayout->addStretch();
+    buttonWidget->setLayout(buttonWidgetLayout);
+
+    mainWindowLayout->addWidget(openFileGroupBox);
+    mainWindowLayout->addWidget(chooseFeaturesGroupBox);
+    mainWindowLayout->addWidget(buttonWidget);
+
     mainWindowWidget->setLayout(mainWindowLayout);
     setCentralWidget(mainWindowWidget);
 }
 
 void MainWindow::createConnections()
 {
+    connect(openImageFilePushButton,&QPushButton::clicked,[&]()
+    {
+        auto imageFilePath = QFileDialog::getOpenFileName(this,"Изображение","./","Image files: (*.jpg *.png)");
+        filePathLineEdit->setText(imageFilePath);
+    });
     connect(applyPushButton,
             &QPushButton::clicked,
             [&]()
     {
+        if (filePathLineEdit->text().isEmpty())
+        {
+            return;
+        }
         switch (chooseFeatureComboBox->currentIndex())
         {
             case SYS::toUType(FeatureType::LOADING_IMAGE):
@@ -63,6 +96,9 @@ void MainWindow::createConnections()
                 break;
             case SYS::toUType(FeatureType::EDGE_DETECTION):
                 edgeDetection();
+                break;
+            case SYS::toUType(FeatureType::CONTOUR_DETECTION):
+                contourDetection();
                 break;
             default:
                 break;
@@ -85,14 +121,18 @@ void MainWindow::addGaussianNoise(cv::Mat& image, double average, double standar
 
 void MainWindow::loadAndShowImage()
 {
-    std::string image_path("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Haze6.jpg");
+    std::string image_path(filePathLineEdit->text().toStdString());
     cv::Mat image = cv::imread(image_path,cv::IMREAD_COLOR);
+    if (image.empty())
+    {
+        return;
+    }
     cv::imshow("Sample image",image);
 }
 
 void MainWindow::pixelManipulations()
 {
-    std::string image_path("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg");
+    std::string image_path(filePathLineEdit->text().toStdString());
     cv::Mat image = cv::imread(image_path,cv::IMREAD_COLOR);
     if (!image.empty())
     {
@@ -121,7 +161,11 @@ void MainWindow::pixelManipulations()
 
 void MainWindow::imageSharpening()
 {
-    cv::Mat img = cv::imread("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg");
+    cv::Mat img = cv::imread(filePathLineEdit->text().toStdString());
+    if (img.empty())
+    {
+        return;
+    }
     cv::Mat img_with_laplace_sharpening;
     //sharpenWithFilter2D(img,img_with_laplace_sharpening);
     sharpen(img,img_with_laplace_sharpening);
@@ -165,7 +209,11 @@ void MainWindow::sharpenWithFilter2D(const cv::Mat &src, cv::Mat &dst)
 
 void MainWindow::imageSmoothing()
 {
-    cv::Mat image = cv::imread("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg");
+    cv::Mat image = cv::imread(filePathLineEdit->text().toStdString());
+    if (image.empty())
+    {
+        return;
+    }
     cv::Mat noisy_image = image.clone();
     addGaussianNoise(noisy_image,0.,20.);
     cv::imshow("Noisy image",noisy_image);
@@ -197,7 +245,11 @@ void MainWindow::imageSmoothing()
 
 void MainWindow::histogramEqualization()
 {
-    cv::Mat image = cv::imread("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg",cv::IMREAD_GRAYSCALE);
+    cv::Mat image = cv::imread(filePathLineEdit->text().toStdString(),cv::IMREAD_GRAYSCALE);
+    if (image.empty())
+    {
+        return;
+    }
     cv::imshow("Grayscaled image",image);
     int hist_size = 256;
     float range[] = {0, 256};
@@ -240,7 +292,11 @@ void MainWindow::histogramEqualization()
 
 void MainWindow::edgeDetection()
 {
-    cv::Mat image = cv::imread("G:/Stepanov/Projects/ComputerVision/TestingOpenCV/TestingOpenCV/Church.jpg",cv::IMREAD_COLOR);
+    cv::Mat image = cv::imread(filePathLineEdit->text().toStdString(),cv::IMREAD_COLOR);
+    if (image.empty())
+    {
+        return;
+    }
     //определение границ изображения в градациях серого с помощью оператора Собеля
     cv::Mat grayscaled_image,grayscaled_edges;
     cv::medianBlur(image,image,3);
@@ -294,6 +350,23 @@ void MainWindow::edgeDetection()
     cv::Mat canny_edges;
     cv::Canny(image,canny_edges,200,250);
     cv::imshow("Canny edge detection",canny_edges);
+}
+
+void MainWindow::contourDetection()
+{
+    cv::Mat image = cv::imread(filePathLineEdit->text().toStdString(),cv::IMREAD_GRAYSCALE);
+    if (image.empty())
+    {
+        return;
+    }
+    cv::imshow("Original image",image);
+    cv::GaussianBlur(image,image,cv::Size(5,5),0.6,0.6);//сглаживание гауссовским фильтром
+    cv::threshold(image,image,127,255,cv::THRESH_BINARY);//обязательное приведение к бинарному виду
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(image,contours,cv::RETR_CCOMP,cv::CHAIN_APPROX_SIMPLE);
+    cv::Mat canvas = cv::Mat::ones(image.rows,image.cols,CV_8UC3);
+    cv::drawContours(canvas,contours,-1,cv::Scalar(0,255,0));
+    cv::imshow("Image contours",canvas);
 }
 
 
