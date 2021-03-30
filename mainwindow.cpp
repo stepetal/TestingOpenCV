@@ -23,6 +23,7 @@ void MainWindow::createWidgets()
                                                      << "Нормализация гистограммы"
                                                      << "Обнаружение границ изображения"
                                                      << "Обнаружение контура изображения"
+                                                     << "Обнаружение углов при помощи алгоритма Харриса"
                                     );
     applyPushButton = new QPushButton("Запустить");
     openImageFilePushButton = new QPushButton("Открыть");
@@ -99,6 +100,9 @@ void MainWindow::createConnections()
                 break;
             case SYS::toUType(FeatureType::CONTOUR_DETECTION):
                 contourDetection();
+                break;
+            case SYS::toUType(FeatureType::HARRIS_CORNER_DETECTION):
+                harrisCornerDetection();
                 break;
             default:
                 break;
@@ -367,6 +371,100 @@ void MainWindow::contourDetection()
     cv::Mat canvas = cv::Mat::ones(image.rows,image.cols,CV_8UC3);
     cv::drawContours(canvas,contours,-1,cv::Scalar(0,255,0));
     cv::imshow("Image contours",canvas);
+}
+
+void MainWindow::harrisCornerDetection()
+{
+    //имплементация алгоритма Харриса
+
+    cv::Mat image = cv::imread(filePathLineEdit->text().toStdString(),cv::IMREAD_GRAYSCALE);
+    cv::imshow("Original image",image);
+    cv::Mat copy_image = image.clone();
+    image.convertTo(image,CV_32F);
+    float corner_threshold = 0.02;
+    cv::Mat grad_x,grad_y;
+    cv::Sobel(image.clone(),grad_x,CV_32F,1,0); //находим производную по оси OX
+    cv::Sobel(image.clone(),grad_y,CV_32F,0,1); //находим производную по оси OY
+    grad_x.convertTo(grad_x,CV_8U);
+    cv::imshow("Gradient X",grad_x);
+    grad_y.convertTo(grad_y,CV_8U);
+    cv::imshow("Gradient Y",grad_y);
+    cv::Mat XX = cv::Mat::zeros(cv::Size(image.cols,image.rows),CV_32F);
+    cv::Mat XY = cv::Mat::zeros(cv::Size(image.cols,image.rows),CV_32F);
+    cv::Mat YY = cv::Mat::zeros(cv::Size(image.cols,image.rows),CV_32F);
+
+    cv::multiply(grad_x.clone(),grad_x.clone(),XX);
+    cv::multiply(grad_x.clone(),grad_y.clone(),XY);
+    cv::multiply(grad_y.clone(),grad_y.clone(),YY);
+
+    cv::GaussianBlur(XX.clone(),XX,cv::Size(7,7),1,1);
+    cv::GaussianBlur(XY.clone(),XY,cv::Size(7,7),1,1);
+    cv::GaussianBlur(YY.clone(),YY,cv::Size(7,7),1,1);
+
+    float alpha = 0.05;
+    cv::Mat M = cv::Mat::zeros(cv::Size(2,2),CV_32F);
+    std::vector<float> eigenvalues(2);
+    cv::Mat cornerness = cv::Mat::zeros(cv::Size(image.cols,image.rows),CV_32F);
+    for(int i = 0; i < image.rows; ++i)
+    {
+        float *xx = XX.ptr<float>(i);
+        float *xy = XY.ptr<float>(i);
+        float *yy = YY.ptr<float>(i);
+        for(int j = 0; j < image.cols; ++j)
+        {
+            M.at<float>(0,0) = xx[j];
+            M.at<float>(0,1) = xy[j];
+            M.at<float>(1,0) = xy[j];
+            M.at<float>(1,1) = yy[j];
+
+            cv::eigen(M,eigenvalues);
+            cornerness.at<float>(i,j) = (float)cv::determinant(M) - alpha * ((float)cv::trace(M)[0] * (float)cv::trace(M)[0]);
+        }
+    }
+    cv::threshold(cornerness,cornerness,corner_threshold,255,cv::THRESH_TOZERO);
+
+    // Non-Maximum Suppression
+    int rad = 3;
+
+    for (int i = rad; i < image.rows - rad; ++i)
+    {
+        float *p = cornerness.ptr<float>(i);
+
+        for (int j = rad; j < image.cols - rad; ++j)
+        {
+            cv::Mat NMS = cornerness(cv::Range(j - rad, j + rad), cv::Range(i - rad, i + rad));
+            double minVal, maxVal;
+            cv::minMaxLoc(NMS, &minVal, &maxVal);
+            if (p[j] < maxVal)
+            {
+                p[j] = 0;
+            }
+        }
+    }
+
+    for (int i = 0; i < image.rows; ++i)
+    {
+        float *p = cornerness.ptr<float>(i);
+        for (int j = 0; j < image.cols; ++j)
+        {
+            if (p[j] > 0)
+            {
+                cv::circle(image, cv::Point(j, i), 1, cv::Scalar(0, 0, 255));
+            }
+        }
+    }
+
+    image.convertTo(image, CV_8U);
+    cv::imshow("Harris corner detector", image);
+    std::vector<cv::Point2f> corners;
+    //реализация алгоритма Харриса на основе GoodFeaturesToTrack
+    cv::Mat cornerness_harris = copy_image.clone();
+    cv::goodFeaturesToTrack(image,corners,10000,0.01,10,cv::Mat(),3,3,true,0.04);
+    foreach (auto corner, corners) {
+        cv::circle(cornerness_harris,corner,2,0);
+    }
+    cv::imshow("Harris corner detector OpenCV",cornerness_harris);
+
 }
 
 

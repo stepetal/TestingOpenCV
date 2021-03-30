@@ -15,6 +15,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/core/fast_math.hpp>
+#include <opencv2/features2d.hpp>
+
 
 
 class MainWindow : public QMainWindow
@@ -26,7 +28,8 @@ class MainWindow : public QMainWindow
                                       IMAGE_SMOOTHING,        //сглаживание изображения
                                       HISTOGRAM_EQUALIZATION, // построение гистограммы и эквализация гистограммы
                                       EDGE_DETECTION,         //обнаружение границ
-                                      CONTOUR_DETECTION       //обнаружение контура
+                                      CONTOUR_DETECTION,      //обнаружение контура
+                                      HARRIS_CORNER_DETECTION //обнаружение углов (алгоритм Харриса)
                                      };
     QComboBox *chooseFeatureComboBox;
     QPushButton *applyPushButton;
@@ -49,6 +52,7 @@ public:
     void histogramEqualization();
     void edgeDetection();
     void contourDetection();
+    void harrisCornerDetection();
 
 
     ~MainWindow();
